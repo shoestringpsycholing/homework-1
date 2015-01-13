@@ -1,0 +1,206 @@
+---
+title: "Day 5 Homework"
+output: html_document
+---
+
+0. Start out by getting your data into "long" format.  This will help with some of the following.
+
+My data is already in long format.
+
+```{r}
+
+library(reshape2)
+library(ggplot2)
+
+# load data
+mydata <- read.csv("../EEG_compiled.txt")
+summary(mydata)
+
+# get data ready (from homework 3)
+
+mydata$subject <- sub("^", "S", mydata$subject) # add "S" in front of the subject number in column "subj"
+head(mydata) # check that it worked
+
+# make subj, cond, elec factors
+mydata$subject <- factor(mydata$subject)
+mydata$condition <- factor(mydata$condition)
+mydata$electrode <- factor(mydata$electrode)
+summary(mydata) # check that it worked
+
+# relabel levels of factors
+levels(mydata$condition) <- c("definite", "indefinite")
+summary(mydata) # check that it worked
+levels(mydata$electrode) <- c("O2", "O1", "FP2", "Pz", "P4", "CP4", "P8", "C4", "TP8", "T8", "P7", "P3", "CP3", "CPz", "Cz", "FC4", "FT8", "TP7", "C3", "FCz", "Fz", "F4", "F8", "T7", "FT7", "FC3", "F3", "elec28", "F7", "FP1", "elec31", "elec32")
+summary(mydata$electrode) # check that it worked
+summary(mydata)
+
+```
+
+
+1. Pick a single numerical variable from your data.  Use `ggplot` to plot a histogram and a density plot (separately).
+   - Try some different values for `binwidth` for the histogram.
+   - Try some different values for `adjust` for the density plot.
+
+```{r}
+
+mybaseplot <- ggplot(mydata, aes(x = amplitude)) # save baseplot as an object
+mybaseplot + geom_histogram(binwidth = .2)
+mybaseplot + geom_histogram(binwidth = .5)
+mybaseplot + geom_histogram(binwidth = .8)
+
+mybaseplot + geom_density(adjust = .5)
+mybaseplot + geom_density(adjust = .3)
+mybaseplot + geom_density(adjust = .7)
+
+```
+
+
+
+
+2. How does the distribution look?  Try transforming the variable and try to get it to look more normal (i.e., more Gaussian).  If it already looks normal, do something to it to make it look non-normal.
+
+  - the distribution looks pretty normal, but there is an outlier that makes it negatively skewed
+
+
+```{r}
+
+ggplot(mydata, aes(log(amplitude))) + geom_histogram() # makes it less skewed
+ggplot(mydata, aes(sqrt(amplitude))) + geom_histogram() # makes it less skewed, also the skew is now positive (taking the squareroot of negative numbers leads to NaN)
+
+
+```
+
+
+3. Is there a factor that you can use to break up this variable into groups of observations?  If not, reshape your data so that there is, or create a factor if necessary.  Then, do the following:
+   - Plot it as a density plot, mapping `color` to the factor
+   - Same, but try using `fill` instead of `color`
+   - Same, using `linetype` instead of `color`
+   - Plot the data as a boxplot, with the factor as `x` and the numerical variable as `y`
+
+```{r}
+
+ggplot(mydata, aes(x = amplitude, color = condition)) + geom_density() 
+ggplot(mydata, aes(x = amplitude, fill = condition)) + geom_density() 
+ggplot(mydata, aes(x = amplitude, linetype = condition)) + geom_density() 
+
+ggplot(mydata, aes(x = condition, y = amplitude)) + geom_boxplot() 
+
+
+```
+
+
+
+4. Now let's look at breaking up a histogram across a factor.  With the same variables you used in #3:
+   - Plot a histogram, but use faceting to display them, one above the other.
+   - Try mapping the factor to `color` or `fill`, to see what that looks like.
+   - Which one seems most useful or informative for your data, and why?
+
+```{r}
+
+ggplot(mydata, aes(x = amplitude)) + geom_histogram() + facet_grid(~ condition)
+ggplot(mydata, aes(x = amplitude, color = condition)) + geom_histogram() + facet_grid(~ condition)
+ggplot(mydata, aes(x = amplitude, fill = condition)) + geom_histogram() + facet_grid(~ condition)
+
+# The plots appear next to each other rather than above each other, but I think facet_grid should make them be one above the other. What is going wrong?
+
+```
+
+Neither of these plots is particularly informative for my data. In order for them to be informative, I would have to plot a shorter timeinterval, for example only between timesteps 200 to 300. 
+
+
+
+5. Now find two numerical variables.  You may need to reshape your data.  For example, if you have one numerical variable and a "condition" factor, you could use `dcast` to spread that variable across multiple columns (one per level of the factor).  Once you have two numerical variables:
+   - Create a scatterplot, with one variable mapped to `x` and the other to `y`.
+   - Plot a "loess" smoother on top of the scatterplot
+   - Plot a regression line on top of the scatterplot (instead of the loess)
+
+
+```{r}
+
+# take the mean of "amplitude" for each condition for each electrode (across subjects)
+data.agg <- dcast(mydata, electrode ~ condition, value.var = "amplitude", fun.aggregate = mean)
+head(data.agg)
+
+ggplot(data.agg, aes(x = definite, y = indefinite)) + geom_point() # scatterplot
+ggplot(data.agg, aes(x = definite, y = indefinite)) + geom_point() + geom_smooth(method = "loess")
+ggplot(data.agg, aes(x = definite, y = indefinite)) + geom_point() + geom_smooth(method = "lm")
+
+```
+
+
+
+6. Are there any other factors that split up the variable plotted in #5?  If so try the following:
+   - Map the factor to `color`
+   - Facet by the factor
+
+```{r}
+
+ggplot(data.agg, aes(x = definite, y = indefinite, color = electrode)) + geom_point() + facet_grid(~ electrode)
+
+
+```
+
+
+
+7. Output all of the plots above as a single PDF.
+
+
+```{r}
+
+
+pdf("myplot.pdf") # starts a pdf file 
+
+mybaseplot <- ggplot(mydata, aes(x = amplitude)) # save baseplot as an object
+mybaseplot + geom_histogram(binwidth = .2)
+mybaseplot + geom_histogram(binwidth = .5)
+mybaseplot + geom_histogram(binwidth = .8)
+mybaseplot + geom_density(adjust = .5)
+mybaseplot + geom_density(adjust = .3)
+mybaseplot + geom_density(adjust = .7)
+
+ggplot(mydata, aes(log(amplitude))) + geom_histogram() # makes it less skewed
+ggplot(mydata, aes(sqrt(amplitude))) + geom_histogram() # makes it less skewed, also the skew is now positive (taking the squareroot of negative numbers leads to NaN)
+
+ggplot(mydata, aes(x = amplitude, color = condition)) + geom_density() 
+ggplot(mydata, aes(x = amplitude, fill = condition)) + geom_density() 
+ggplot(mydata, aes(x = amplitude, linetype = condition)) + geom_density() 
+ggplot(mydata, aes(x = condition, y = amplitude)) + geom_boxplot() 
+
+ggplot(mydata, aes(x = amplitude)) + geom_histogram() + facet_grid(~ condition)
+ggplot(mydata, aes(x = amplitude, color = condition)) + geom_histogram() + facet_grid(~ condition)
+ggplot(mydata, aes(x = amplitude, fill = condition)) + geom_histogram() + facet_grid(~ condition)
+
+ggplot(data.agg, aes(x = definite, y = indefinite)) + geom_point() # scatterplot
+ggplot(data.agg, aes(x = definite, y = indefinite)) + geom_point() + geom_smooth(method = "loess")
+ggplot(data.agg, aes(x = definite, y = indefinite)) + geom_point() + geom_smooth(method = "lm")
+
+ggplot(data.agg, aes(x = definite, y = indefinite, color = electrode)) + geom_point() + facet_grid(~ electrode)
+
+
+dev.off() # closes file
+
+
+```
+
+
+8. Is there a better type of visualization for your data?  What numbers would you like to be able to visualize better?  Be as explicit as possible, and write some "pseudo-code" to ilustrate what you think you would like.
+
+The obvious way to visualise ERP data would be amplitude by timesteps and condition. I could average across subjects and electrodes and plot timestep on the x axis and amplitude on the y axis
+
+```{r eval = FALSE}
+
+# take the mean of "amplitude" for each timestep for each condition (across subjects and electrodes)
+data.agg2 <- dcast(mydata, timestep ~ condition, value.var = "amplitude", fun.aggregate = mean)
+head(data.agg)
+
+ggplot(data.agg, aes(x = timestep, y = amplitude, color = condition)) + geom_point() 
+
+
+
+```
+
+
+
+9. Save your Markdown document that answers all of these questions (with code) as well as your PDF, and commit them as changes to your git homework repository.  Push those changes to GitHub by Monday morning at 9am.
+
+

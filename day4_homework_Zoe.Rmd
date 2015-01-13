@@ -1,0 +1,198 @@
+---
+title: "Day 4 Homework"
+output: html_document
+---
+
+1. Change the column names of your data to something easier to work with.  If you like your column names, change them into something else reasonable, just for practice.
+
+```{r}
+library(reshape2)
+
+# load data
+mydata <- read.csv("EEG_compiled.txt")
+summary(mydata)
+
+# rename columns
+colnames(mydata) # check column names
+oldnames <- colnames(mydata) # put column names in vector
+mycolnames <- c("subj", "cond", "elec", "time", "amp") # make vector of new names
+colnames(mydata) <- mycolnames # assign vector of new names to column names
+colnames(mydata) # check column names
+data.frame(oldnames, mycolnames) # make table with old and new column names
+
+summary(mydata)
+
+```
+
+
+
+2. List ALL the issues you can see where it looks like your data is being read in a weird way.  If your data looks perfect, find some way to mess it up :-)
+
+  - My data is read fine, so I reloaded it using read.table
+  - I used a subset of my data here, rather than the whole data set
+  - This puts the content of all columns in just one column
+
+```{r}
+
+head(mydata)
+
+mydata.mess <- read.table("EEG_compiled_short.txt")
+head(mydata.mess)
+
+```
+
+
+3. Pick one or two of the most egregious or problematic of the issues in #2 and fix them.
+
+  - I will split the data into multiple columns
+
+```{r}
+
+# split data into columns subject, condition, electrode, timestep, amplitude, by separator ","
+new.cols <- colsplit(mydata.mess$V1, pattern="\\,", names = c("subject", "condition", "electrode", "timestep", "amplitude"))
+
+head(mydata.mess)
+head(new.cols) # check that it worked
+
+new.cols <- new.cols[2:nrow(new.cols), ] # delete the first row
+head(new.cols) # check that it worked
+
+
+```
+
+
+4. Check for NAs, and report where you see them (try to pinpoint where they are, not just "5 NAs in column seven".
+
+
+  - My data does not have any NAs, so I created an extra file in which I deleted two values (again, I used only a subset of my data)
+  - There is an NA in column "electrode" in row 106 and one in column "amplitude" in row 34
+
+
+```{r}
+
+mydata.na <- read.csv("EEG_compiled_short_NA.txt")
+summary(mydata.na) # 1 NA in column electrode, 1 in amplitude
+
+which(is.na(mydata.na), arr.ind=TRUE) # find the indices of the NA values
+
+# print rows containing NAs to see which subject, condition, timestep, and electrode they affect
+print(mydata.na[34, ])
+print(mydata.na[106, ])
+
+
+
+```
+
+
+
+5. Decide what you think you should do about the NAs, and say why.  If you can, try to implement this decision.
+
+  - I will find out which of the 32 electrodes did not get coded correctly for that subject in that condition and timestep and will replace NA with the correct electrode number. Since there are 32 electrodes per condition per timestep per subject, I can easily reconstruct which electrode this is and can fix the problem and keep the row.
+
+  - I will remove the row containing the NA in "amplitude" because that is the dependent variable and the value cannot be reconstructed. Without that information the row is useless.
+
+  - What I should really do is remove the entire data for the subject with the NA in amplitude. I am planning to do a timeseries analysis for this data, so it is essential that the dependent variable has a value for each timestep. 
+  
+
+```{r}
+
+# replace NA in column "electrode" with electrode number
+
+print(mydata.na[106, ]) # find subject, condition, and timestep affected
+
+# find all rows with subject 11, condition 1, and timestep 4 to identify missing electrode
+which(mydata.na$timestep == "4" & mydata.na$subject == "11" & mydata.na$condition =="1", arr.ind = TRUE)
+print(mydata.na[97:128, ]) # print rows 97:128 to see which electrode is missing -> NA is electrode 10
+mydata.na$electrode[106] <- "10" # replace NA by "10" 
+print(mydata.na[106, ]) # check if it worked
+mydata.na$electrode <- factor(mydata.na$electrode) # make electrode a factor
+
+
+# remove rows with NAs (now only one row with NA in amplitude left)
+mydata2 <- mydata.na[complete.cases(mydata.na), ] # create a new object with only the rows from mydata.na not containing an NA 
+summary(mydata2) # check
+
+
+# remove subject 11 with NA in amplitude
+mydata2 <- mydata.na[!mydata.na$subject == "11", ]
+summary(mydata2) # check
+
+
+
+```
+
+
+6. Remove any problematic rows and/or columns.  Say why you want to remove them.  If there aren't any problems, describe why you think there are no problems.
+
+If we consider my actual data (rather than the data I intentionally messed up), there aren't any problematic rows or columns. The reason for this is that doing an ERP experiment gives values for each timepoint in the defined interval, so there are no missing values in the amplitude column. Subjects for whom an electrode malfunctioned have already been excluded from this dataset. 
+
+
+
+7. Re-code at least one factor.  Provide a table that shows the correspondence between old levels and new levels.
+
+
+```{r}
+
+# make "condition" a factor
+mydata$cond <- factor(mydata$cond)
+
+# relabel levels of "factors "condition
+levels(mydata$cond)
+oldlevels <- levels(mydata$cond)
+newlevels <- c("definite", "indefinite")
+levels(mydata$cond) <- newlevels
+data.frame(oldlevels, newlevels)
+summary(mydata) # check that it worked
+
+
+```
+
+
+
+8. Run TWO DIFFERENT simple analyses or statistical tests, such as linear regression (`lm()`), logistic regression (`glm()`), correlation test (`cor.test()`), t-test (`t.test()`), or non-parametric tests (e.g., `wilcox.test()`).  For each of these:
+  - Describe why you are doing this analysis, i.e., what question is it answering?
+  - I won't judge you on statistical expertise!  (though I will make comments if I think I can be helpful)
+  - Report some key statistics from the analysis, using inline code
+  
+```{r}
+
+# compare definite condition to indefinite condition using a t-test (across electrodes and timesteps)
+
+# take the mean of "amplitude" for each condition for each subject (across electrodes)
+data.agg <- dcast(mydata, subj ~ cond, value.var = "amp", fun.aggregate = mean)
+data.agg
+
+definite <- data.agg$definite
+indefinite<- data.agg$indefinite
+
+results <- t.test(definite, indefinite, paired = TRUE)
+mysummary <- summary(results)
+mysummary
+
+
+
+#  Is there a correleation between the amplitude at an electrode in the definite and the indefinite condition?
+
+# take the mean of "amplitude" for each electrode for each condition (across subjects)
+data.agg2 <- dcast(mydata, cond ~ elec, value.var = "amp", fun.aggregate = mean)
+data.agg2
+
+
+x <- as.numeric(data.agg2[1, 2:33])
+y <- as.numeric(data.agg2[2, 2:33])
+
+results.cor <- cor.test(x, y, alternative = "greater")
+
+mysummary <- summary(results.cor)
+
+
+
+```
+
+I conducted a paired-samples t-test to find out if there is a significant difference in the amplitude between the definite and indefinite condition in the overall timewindow of analysis. There was not a significant difference in the amplitude for definite and indefinite; t(`{r} results$parameter`)=`{r} results$statistic`, p = `{r} results$p.value`
+
+I conducted a correlation test to find out if there is a correleation between the amplitude at an electrode in the definite and indefinite condition in the overall timewindow of analysis. There was a positive correlation, r`{r} results.cor$parameter` = `{r} results.cor$estimate`, p = `{r} results.cor$p.value`
+
+
+
+  

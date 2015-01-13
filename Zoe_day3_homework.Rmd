@@ -1,0 +1,265 @@
+---
+title: "Day 3 Homework"
+output: html_document
+---
+
+The goal of this homework is to get practice with manipulating data.
+
+0. Get everything ready
+
+```{r}
+
+library(reshape2) # load reshape2 package
+
+mydata <- read.csv("EEG_compiled.txt")
+summary(mydata)
+head(mydata)
+
+mydata$subject <- sub("^", "S", mydata$subject) # add "S" in front of the subject number in column "subj"
+head(mydata) # check that it worked
+
+# make subj, cond, elec factors
+mydata$subject <- factor(mydata$subject)
+mydata$condition <- factor(mydata$condition)
+mydata$electrode <- factor(mydata$electrode)
+summary(mydata) # check that it worked
+
+# relabel levels of factors
+levels(mydata$condition) <- c("definite", "indefinite")
+summary(mydata) # check that it worked
+levels(mydata$electrode) <- c("O2", "O1", "FP2", "Pz", "P4", "CP4", "P8", "C4", "TP8", "T8", "P7", "P3", "CP3", "CPz", "Cz", "FC4", "FT8", "TP7", "C3", "FCz", "Fz", "F4", "F8", "T7", "FT7", "FC3", "F3", "elec28", "F7", "FP1", "elec31", "elec32")
+summary(mydata$electrode) # check that it worked
+summary(mydata)
+
+```
+
+
+
+1. Make both a "wide" and a "long" version of your data
+ 
+
+```{r}
+
+# make a wide version of the data
+mydata.wide <- mydata 
+mydata.wide <- dcast(mydata, subject + timestep ~ condition + electrode, value.var = "amplitude") 
+head(mydata.wide)
+
+
+# make a long version of the data
+mydata.long <- mydata.wide
+mydata.long <- melt(mydata.wide, id.vars = c("subject", "timestep"), value.name = "amplitude", variable.name = "condition.electrode")
+head(mydata.long)
+
+
+```
+
+```{r eval=FALSE}
+# casting with a lot of variables
+
+mydata.wide <- dcast(mydata.long, [80 columns here] ~ split)
+
+columns.to.keep <- colnames(mydata.long)[1:80]
+columns.tokeep.pasted <- paste(columns.to.keep, callapse = " + ") # takes a vector and pastes together all the things in the vector, so this creates one string!
+my.cast.formula <- as.formula(paste(columns.to.keep.pasted, " ~ split"))
+class(my.cast.formula) # should be of type formula
+mydata.wide <- dcast(mydata.long, formula = my.cast.formula)
+
+
+mydata.wide <- dcast(mydata.long, [ ,c(1,2,4)] ~ condition.electrode)
+
+columns.to.keep <- colnames(mydata.long[ , c(1,2,4)])
+columns.to.keep.pasted <- paste(columns.to.keep, callapse = " + ") # takes a vector and pastes together all the things in the vector, so this creates one string!
+my.cast.formula <- as.formula(paste(columns.to.keep.pasted, " ~ condition.electrode")) # says 'object 'subject' not found'
+class(my.cast.formula) # should be of type formula
+mydata.wide <- dcast(mydata.long, formula = my.cast.formula)
+
+
+```
+
+
+
+
+
+
+2. Transform a variable
+
+```{r}
+
+mydata.ms <- mydata
+summary(mydata.ms) # check that data is in the format I think it is
+
+# create a column containing the timesteps in milliseconds (each timestep is 2ms)
+mydata.ms$ms <- mydata.ms$timestep*2
+head(mydata.ms)
+summary(mydata.ms)
+
+```
+
+
+
+3. Recode a factor
+
+```{r}
+
+# I am not 100% sure what you mean by "recode" here, but since I relabeled factors at the beginning, I'm reordering levels 
+
+mydata.indef.def <- mydata
+summary(mydata.indef.def) 
+
+# reorder the levels of factor "condition"
+mydata.indef.def$condition <- factor(mydata.indef.def$condition, levels = c("indefinite", "definite"))
+levels(mydata.indef.def$condition)
+summary(mydata.indef.def) # check that it worked
+
+```
+
+
+
+4. Add a new factor, where the levels are conditional on the values of some other variable. E.g., a factor of "high", "medium", and "low" based on thresholds for another variable.
+
+```{r}
+
+# adding factor "scalp", with levels "anterior" and "posterior", "other"
+# anterior electrodes: F7, FT7, FP1, F3, FC3, Fz, FCz, FP2, F4, FC4, F8, FT8
+# posterior electrodes: TP7, P7, CP3, P3, O1, CPz, Pz, CP4, P4, O2, TP8, P8
+
+mydata.scalp <- mydata
+
+mydata.scalp$scalp <- "other"
+head(mydata.scalp)
+mydata.scalp$scalp[mydata.scalp$electrode %in% c("F7", "FT7", "FP1", "F3", "FC3", "Fz", "FCz", "FP2", "F4", "FC4", "F8", "FT8")] <- "anterior"
+mydata.scalp$scalp[mydata.scalp$electrode %in% c("P7", "TP7", "O1", "P3", "CP3", "Pz", "CPz", "O2", "P4", "CP4", "P8", "TP8")] <- "posterior"
+xtabs(~ scalp + electrode, data = mydata.scalp) # cross-tabulation to check if it worked
+
+summary(mydata.scalp) # shows that "scalp" is not a factor 
+
+
+# I don't understand this following part, is it an alternative way of doing the same thing?
+# mydata.scalp2 <- cbind(mydata.scalp, 
+#                       colsplit(mydata.scalp$scalp, pattern = "\\.",
+#                                names = c("scalp")))
+# myiris.melt2 <- cbind(myiris.melt, 
+#                       colsplit(myiris.melt$measurement.type, pattern = "\\.",
+#                                names = c("PlantPart", "Dimension")))
+
+
+
+```
+
+Class notes
+```{r}
+
+
+
+```
+
+
+
+
+5. Reorder the levels of this new factor
+
+```{r}
+
+summary(mydata.scalp) # shows that "scalp" is not a factor here!
+
+# mydata.scalp$scalp <- factor(mydata.scalp$scalp) # turns "scalp" into a factor, not really necessary
+# levels(mydata.scalp$scalp) # check levels of factor "scalp"
+
+# reorder the levels of factor "scalp"
+mydata.scalp$scalp <- factor(mydata.scalp$scalp, levels = c("other", "anterior", "posterior"))
+levels(mydata.scalp$scalp) # check levels of factor "scalp"
+
+```
+
+
+6. Choose a factor that could be re-coded as multiple dimensions (recall the sepal/petal vs. length/width breakdown). If you don't have one, try to create one.  Now create two (or more) new factors that represent these dimensions.
+
+```{r}
+# create factor "quadrant", with 5 levels
+# other
+# front.left: "FP1", "F3", "FC3", "F7", "FT7"
+# front.right: "FP2", "F4", "FC4", "F8", "FT8"
+# back.left: "O1", "P3", "CP3", "P7", "TP7"
+# back.right: "O2", "P4", "CP4", "P8", "TP8"
+
+summary(mydata) # make sure the data is in the format I think it is
+mydata.quad <- mydata
+
+mydata.quad$quadrant <- "other" # create column "quadrant" and fill all rows with "other"
+head(mydata.quad)
+# change value in "quadrant" to the appropriate value for these electrodes
+mydata.quad$quadrant[mydata.quad$electrode %in% c("FP1", "F3", "FC3", "F7", "FT7")] <- "front.left" 
+mydata.quad$quadrant[mydata.quad$electrode %in% c("FP2", "F4", "FC4", "F8", "FT8")] <- "front.right"
+mydata.quad$quadrant[mydata.quad$electrode %in% c("O1", "P3", "CP3", "P7", "TP7")] <- "back.left"
+mydata.quad$quadrant[mydata.quad$electrode %in% c("O2", "P4", "CP4", "P8", "TP8")] <- "back.right"
+xtabs(~ quadrant + electrode, data = mydata.quad) # cross-tabulation to check if it worked
+
+summary(mydata.quad) # shows that "quadrant" is not a factor
+mydata.quad$quadrant <- factor(mydata.quad$quadrant) # make "quadrant" a factor
+summary(mydata.quad)
+
+#split along the left/right dimension
+
+# delete "other" electrodes by making new dataframe
+mydata.quad2 <- mydata.quad[mydata.quad$quadrant %in% c("front.left", "front.right", "back.left", "back.right"), ]
+# mydata.quad2 <- mydata.quad[!mydata.quad$quadrant %in% c("other"), ] # this would do the same
+
+summary(mydata.quad2)
+mydata.quad2 <- droplevels(mydata.quad2) # remove level "other" from factor "quadrant"
+summary(mydata.quad2)
+
+mydata.cast <- dcast(mydata.quad2, subject + condition + electrode + timestep ~ quadrant, value.var = "amplitude" ) # split "quadrant" into 4 columns by level
+head(mydata.cast)
+
+
+
+# When I run this line, R freezes and I have to restart it. Why?
+# mydata.quad3 <- cbind(mydata.quad2, colsplit(mydata.quad2$quadrant, pattern = "\\.", names = c("hemisphere", "front.back")))
+
+# fixing this
+# I don't think this one was necessary: new.cols <- colsplit(as.character(mydata.quad2$quadrant), pattern"\\.", names = c("hemisphere", "front.back"))
+
+mydata.quad2$hemisphere <- ifelse(grepl("left", mydata.quad2$quadrant), "left", "right") #grepl secahres for "left" in the dataset and returns a logical TRUE or FALSE, which is then replaced by "left" and "right"
+mydata.quad2$front.back <- ifelse(grepl("back", mydata.quad2$quadrant), "back", "front")
+xtabs(~ hemisphere + front.back, data = mydata.quad2)
+
+
+
+
+
+
+
+
+```
+
+
+
+7. Using `dcast`, aggregate some variable into "cell means" of some kind.
+
+```{r}
+# this line breaks R, it triggers a message saying that R encountered a fatal error and has to relaunch. Why?
+#data.agg <- dcast(mydata.quad2, subject + condition + timestep + electrode ~ quadrant, value.var = "amplitude", fun.aggregate = mean)
+
+# make a smaller dataset
+data.small <- mydata[mydata$timestep == 1, ] # make a new dataset for the subset where "timestep"" is 1
+data.small$timestep <- NULL # delete "timestep" column
+summary(data.small)
+
+# take the mean of "amplitude" for each electrode for each condition (across subjects)
+data.agg <- dcast(data.small, condition ~ electrode, value.var = "amplitude", fun.aggregate = mean)
+data.agg
+
+# take the mean of "amplitude" for each condition for each electrode (across subjects)
+data.agg2 <- dcast(data.small, electrode ~ condition, value.var = "amplitude", fun.aggregate = mean)
+head(data.agg2)
+
+# take the mean of "amplitude" for each condition for each subject (across electrodes)
+data.agg3 <- dcast(data.small, subject ~ condition, value.var = "amplitude", fun.aggregate = mean)
+data.agg3
+  
+
+```
+
+
+8.  Save all of the above in a well-documented R Markdown document.  Email me the .Rmd file (and if you use different or updated data from Day 2 Homework, send that to me, too).

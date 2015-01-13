@@ -1,0 +1,177 @@
+---
+title: "Day 6 Homework"
+output: html_document
+---
+
+0. Get data ready.
+
+```{r}
+
+library(reshape2) 
+library(ggplot2)
+
+mydata <- read.csv("EEG_compiled.txt")
+mydata$subject <- sub("^", "S", mydata$subject) # add "S" in front of the subject number in column "subj"
+head(mydata) # check that it worked
+
+# make subj, cond, elec factors
+mydata$subject <- factor(mydata$subject)
+mydata$condition <- factor(mydata$condition)
+mydata$electrode <- factor(mydata$electrode)
+summary(mydata) # check that it worked
+
+# relabel levels of factors
+levels(mydata$condition) <- c("definite", "indefinite")
+summary(mydata) # check that it worked
+levels(mydata$electrode) <- c("O2", "O1", "FP2", "Pz", "P4", "CP4", "P8", "C4", "TP8", "T8", "P7", "P3", "CP3", "CPz", "Cz", "FC4", "FT8", "TP7", "C3", "FCz", "Fz", "F4", "F8", "T7", "FT7", "FC3", "F3", "elec28", "F7", "FP1", "elec31", "elec32")
+summary(mydata$electrode) # check that it worked
+summary(mydata)
+
+
+
+```
+
+
+1. Think carefully about your data.  Think about something you would like to do multiple times, to subsets of your data.  
+
+2. Write out (in plain English, in the notebook) what you are trying to do
+
+For each of the subjects, I would like to take the mean amplitude for each electrode for each condition in the timewindow of 300 to 500 ms, which corresponds to timesteps 200 to 300.
+Then I would like to do a t-test to see if there is a significant difference between conditions.
+
+3. Write some "pseudo-code" comments in an R chunk, as an outline
+
+```{r}
+
+# create vector containing all the levels of the "subjects" factor
+
+# create container for answers, with one space for each subject to put the t-test results
+
+#start loop
+for...# go through this loop for each member of the subject vector 
+  # take the subset of the data for the current subject
+  # take a subset of the data that includes only timepoints 200 to 300
+  # aggregate over timepoints, take the mean of "amplitude" for each electrode for each condition
+  # assign values in column "definite" to one variable, and values in column "indefinite" to another       variable
+  # do a t-test on those variables
+  # assign t-test result to container
+
+
+
+```
+
+4. Write some (real) code that will do what you want ONCE, on one subset of the data.
+
+```{r}
+
+# take a subset of the data for one participant
+subset1 <- mydata[mydata$subject %in% "S2", ]
+
+# take a subset of the data that includes only timepoints 200 to 300
+subset2 <- subset1[subset1$timestep %in% c(200:300), ]
+                                      
+# aggregate over timepoints, take the mean of "amplitude" for each electrode for each condition
+data.agg <- dcast(subset2, electrode ~ condition, value.var = "amplitude", fun.aggregate = mean)
+head(data.agg)
+
+# do a t-test
+definite <- data.agg$definite
+indefinite <- data.agg$indefinite
+
+results <- t.test(definite, indefinite, paired = TRUE)
+print(results)
+
+```
+
+
+
+5. Copy that code chunk, and convert it into a loop, which will do what you want over all the groups, concatenating the results.
+
+```{r}
+
+summary(mydata$subject)
+
+# create vector with subject numbers
+subjects <- c("S11", "S13", "S16", "S18", "S2", "S20", "S24", "S25", "S28", "S29", "S3", "S30", "S31", "S32", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S42", "S43", "S44", "S48", "S49", "S5", "S7", "S8", "S9")
+
+
+rm(my.answer) 
+my.answer <- vector(length = length(subjects)) #create container for answers
+for(this.counter in subjects) {
+  this.subject <- subjects[this.counter]
+  subset1 <- mydata[mydata$subject %in% this.subject, ]
+  subset2 <- subset1[subset1$timestep %in% c(200:300), ]
+  data.agg <- dcast(subset2, electrode ~ condition, value.var = "amplitude", fun.aggregate = mean)
+  definite <- data.agg$definite
+  indefinite <- data.agg$indefinite
+  results <- t.test(definite, indefinite, paired = TRUE)
+  my.answer[this.counter] <- results
+}
+
+# I can't get this to work, so I'll try doing it the slightlier easier way:
+
+my.answer.t_value <- data.frame(length = 32) 
+my.answer.df <- data.frame(length = 32) 
+my.answer.p_value <- data.frame(length = 32) 
+for(this.subject in c("S11", "S13", "S16", "S18", "S2", "S20", "S24", "S25", "S28", "S29", "S3", "S30", "S31", "S32", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S42", "S43", "S44", "S48", "S49", "S5", "S7", "S8", "S9")) {
+  subset1 <- mydata[mydata$subject %in% this.subject, ]
+  subset2 <- subset1[subset1$timestep %in% c(200:300), ]
+  data.agg <- dcast(subset2, electrode ~ condition, value.var = "amplitude", fun.aggregate = mean)
+  definite <- data.agg$definite
+  indefinite <- data.agg$indefinite
+  results <- t.test(definite, indefinite, paired = TRUE)
+  my.answer.t_value[this.subject] <- results$statistic
+  my.answer.df[this.subject] <- results$parameter
+  my.answer.p_value[this.subject] <- results$p.value
+}
+
+# combine t-value, df, and p-value for all subjects into one dataframe
+my.answer <- rbind(my.answer.t_value, my.answer.df, my.answer.p_value)
+print(my.answer)
+
+```
+
+
+
+6. Copy that loop again, and at a condition (`if`) statement to add some further control about ignoring some groups or some other conditional operation.
+
+Remove data from subject 38
+
+```{r}
+# clear objects
+rm(my.answer.t_value)
+rm(my.answer.df)
+rm(my.answer.p_value)
+rm(my.answer)
+
+# create containers
+my.answer.t_value <- data.frame(length = 32) 
+my.answer.df <- data.frame(length = 32) 
+my.answer.p_value <- data.frame(length = 32) 
+for(this.subject in c("S11", "S13", "S16", "S18", "S2", "S20", "S24", "S25", "S28", "S29", "S3", "S30", "S31", "S32", "S33", "S34", "S35", "S36", "S37", "S38", "S39", "S40", "S42", "S43", "S44", "S48", "S49", "S5", "S7", "S8", "S9")) {
+  if (!this.subject == "S38") {
+  subset1 <- mydata[mydata$subject %in% this.subject, ]
+  subset2 <- subset1[subset1$timestep %in% c(200:300), ]
+  data.agg <- dcast(subset2, electrode ~ condition, value.var = "amplitude", fun.aggregate = mean)
+  definite <- data.agg$definite
+  indefinite <- data.agg$indefinite
+  results <- t.test(definite, indefinite, paired = TRUE)
+  my.answer.t_value[this.subject] <- results$statistic
+  my.answer.df[this.subject] <- results$parameter
+  my.answer.p_value[this.subject] <- results$p.value
+  }
+}
+
+# combine t-value, df, and p-value for all subjects into one dataframe
+my.answer <- rbind(my.answer.t_value, my.answer.df, my.answer.p_value)
+print(my.answer)
+
+
+
+
+```
+
+
+
+
+
