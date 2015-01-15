@@ -1,0 +1,126 @@
+---
+title: "Day 8 Homework"
+output: html_document
+---
+
+```{r}
+
+
+library(reshape2) 
+library(ggplot2)
+library(dplyr)
+
+mydata <- read.csv("EEG_compiled.txt")
+mydata$subject <- sub("^", "S", mydata$subject) # add "S" in front of the subject number in column "subj"
+head(mydata) # check that it worked
+
+# make subj, cond, elec factors
+mydata$subject <- factor(mydata$subject)
+mydata$condition <- factor(mydata$condition)
+mydata$electrode <- factor(mydata$electrode)
+summary(mydata) # check that it worked
+
+# relabel levels of factors
+levels(mydata$condition) <- c("definite", "indefinite")
+summary(mydata) # check that it worked
+levels(mydata$electrode) <- c("O2", "O1", "FP2", "Pz", "P4", "CP4", "P8", "C4", "TP8", "T8", "P7", "P3", "CP3", "CPz", "Cz", "FC4", "FT8", "TP7", "C3", "FCz", "Fz", "F4", "F8", "T7", "FT7", "FC3", "F3", "elec28", "F7", "FP1", "elec31", "elec32")
+summary(mydata$electrode) # check that it worked
+summary(mydata)
+
+```
+
+
+1. Try to recreate the results of Homework 6 (or your intended results) using the `dplyr` functions.
+
+```{r}
+
+# this only works when I comment out the filter line, otherwise I get "Error in regroup(x, new_groups) : object 'electrode' not found"
+# however: I think it does what I want even though it gives the error message, but it also contains a timestep column, unlike the results below
+results <- mydata %>%
+  #filter(timestep > 199, timestep < 301)
+  group_by(electrode, condition, subject) %>%
+  summarise(mean_amp = mean(amplitude)) 
+summary(results)
+
+
+# this works
+results <- mydata
+results.filtered <- filter(results, timestep > 199, timestep < 301)
+results.grouped <- group_by(results.filtered, electrode, condition, subject)
+results.means <- summarise(results.grouped, mean_amp = mean(amplitude))
+results <- results.means
+summary(results)
+
+# I think I can't get it to do a t-test for each subject for each electrode, because there is only one value for each condition
+mydata.wide <- dcast(results, subject + electrode ~ condition, value.var = "mean_amp") 
+mydata.wide.grouped <- group_by(mydata.wide, subject, electrode)
+t.test <- summarise(mydata.wide.grouped, t.test(definite, indefinite, paired = TRUE))
+
+
+
+# Trying a different way
+results <- mydata
+results.filtered <- filter(results, timestep > 199, timestep < 301)
+mydata.wide <- dcast(results.filtered, subject + electrode + timestep ~ condition, value.var = "amplitude") 
+mydata.wide.grouped <- group_by(mydata.wide, subject, electrode)
+t.test <- summarise(mydata.wide.grouped, t.test(definite, indefinite, paired = TRUE))
+# I get an error message saying "expecting a single value"
+
+
+
+
+                                  
+
+```
+
+
+
+2. Find another kind of analysis/transformation/summary stat that you want to apply across multiple groups in your data. Use the functions from `reshape2` and `dplyr` to get these results.
+
+
+```{r}
+
+# get the maximum amplitude for electrode Fz for each subject in the definite condition
+results2 <- mydata
+results2.filtered <- filter(results2, electrode == "Fz", condition == "definite")
+results2.grouped <- group_by(results2.filtered, subject)
+results2.max <- summarise(results2.grouped, max_amp = max(amplitude)) 
+print(results2.max)
+
+
+# I get an error message and a lot of warnings for trying to do this with piping
+results2 <- mydata %>%
+  filter(results2, electrode == "Fz", condition == "definite") %>%
+  group_by(results2, subject) %>%
+  summarise(results2, max_amp = max(amplitude)) 
+print(results2)
+
+
+
+```
+
+
+
+3. For one more practice, try another example of something like #2 (find another stat or grouping or something).
+
+```{r}
+
+# get the mean across electrodes CPz and Pz and for each subject for timesteps 200 to 300 in the indefinite condition
+
+results3 <- mydata
+results3.filtered <- filter(results3, electrode == c("CPz", "Pz"), timestep > 199, timestep <301, condition == "indefinite")
+results3.filtered.grouped <- group_by(results3.filtered, subject)
+means <- summarise(results3.filtered.grouped, mean_amp_Pz_CPz = mean(amplitude))
+print(means)
+
+# same error message as for 2.
+results3 <- mydata %>%
+  filter(results3, electrode == c("CPz", "Pz"), timestep > 199, timestep <301, condition == "indefinite") %>%
+  group_by(results3, subject) %>%
+  summarise(results3.filtered.grouped, mean_amp_Pz_CPz = mean(amplitude))
+print(results3)
+
+
+```
+
+

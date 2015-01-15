@@ -1,0 +1,118 @@
+---
+title: "Day 7 Homework"
+output: html_document
+---
+
+1. Work on making progress on your Final Project.
+ 
+
+```{r}
+
+# read text file for each subject and combine them into one large dataframe
+
+# text file format:
+# 1 file per subject per condition
+# 32 rows (electrodes)
+# as many rows as timesteps
+# name: experiment_subject_condition.txt
+
+
+
+# create a container
+# write a loop going through all the files in the folder specified
+for ...
+
+# load file
+this.file <- read.csv("data/Cerberus_S2_c1.txt", header = FALSE)
+
+# change column names to electrode names
+oldcolnames <- colnames(this.file)
+newcolnames <- c("O2", "O1", "FP2", "Pz", "P4", "CP4", "P8", "C4", "TP8", "T8", "P7", "P3", "CP3", "CPz", "Cz", "FC4", "FT8", "TP7", "C3", "FCz", "Fz", "F4", "F8", "T7", "FT7", "FC3", "F3", "elec28", "F7", "FP1", "elec31", "elec32")
+colnames(this.file) <- newcolnames
+data.frame(oldcolnames, newcolnames)
+
+# add a column that labels the timesteps (rows)
+this.file$timestep <- 1:nrow(this.file)
+
+# melt the data so that electrode is one column
+this.file.melt <- melt(this.file, id.vars = "timestep", value.name = "amplitude", variable.name = "electrode")
+
+# add subject column and fill it with the subject number of the current file
+this.file.melt$subject <- rep("S2", nrow(this.file.melt))
+
+# add condition column and fill it with the condition number of the current file
+this.file.melt$condition <- rep("c1", nrow(this.file.melt))
+
+# make subject, condition, and electrode factors
+this.file.melt$subject <- factor(this.file.melt$subject)
+this.file.melt$condition <- factor(this.file.melt$condition)
+this.file.melt$electrode <- factor(this.file.melt$electrode)
+
+# add factor "quadrant", 5 levels
+# front.left: "FP1", "F3", "FC3", "F7", "FT7"
+# front.right: "FP2", "F4", "FC4", "F8", "FT8"
+# back.left: "O1", "P3", "CP3", "P7", "TP7"
+# back.right: "O2", "P4", "CP4", "P8", "TP8"
+
+this.file.melt$quadrant <- "other" # create column "quadrant" and fill all rows with "other"
+# change value in "quadrant" to the appropriate value for these electrodes
+this.file.melt$quadrant[this.file.melt$electrode %in% c("FP1", "F3", "FC3", "F7", "FT7")] <- "front.left" 
+this.file.melt$quadrant[this.file.melt$electrode %in% c("FP2", "F4", "FC4", "F8", "FT8")] <- "front.right"
+this.file.melt$quadrant[this.file.melt$electrode %in% c("O1", "P3", "CP3", "P7", "TP7")] <- "back.left"
+this.file.melt$quadrant[this.file.melt$electrode %in% c("O2", "P4", "CP4", "P8", "TP8")] <- "back.right"
+xtabs(~ quadrant + electrode, data = this.file.melt) # cross-tabulation to check if it worked
+this.file.melt$quadrant <- factor(this.file.melt$quadrant) # make "quadrant" a factor
+
+# put this.file.melt into the container
+# for the next loop, add this.file.melt to the container, using rbind()
+
+
+
+# end loop
+
+
+
+# pick out a certain time window from the complete dataset
+
+interval <- c(300:500) # pick out timewindow between 300-500ms
+
+# 1 timestep equals 2ms and the data starts at -100, so to get timestep: (ms + 100) /2
+
+
+
+
+# run an ANOVA between conditions across all electrodes and subjects
+
+# run an ANOVA between conditions and quadrant, across subjects
+
+
+
+
+```
+
+
+
+2. Document some road blocks you are running into.
+
+When reading in the files, I want to extract subject and condition information from the file name, but I don't know how. 
+
+I would like to be able to give the script the name of the experiment (in this case "Cerberus"), so that it doesn't have to be specified in the code that reads the files directly. R would have to know that the structure of the file names is experiment_subject_condition.txt
+
+```{r}
+
+dir()
+# loads all the names of files in the working directory
+# put those in a vector
+# go from there
+
+```
+
+
+
+
+3. Email them to me before 7am tomorrow.
+
+4. Tell me what special topics you are interested in.
+
+I don't have a preference, as I probably won't be able to be there for the special topics session.
+
